@@ -1,0 +1,16 @@
+[
+    {
+        "elevation_in_m": 565.0,
+        "id": "BW.FURT",
+        "latitude": 48.162899000000003,
+        "local_depth_in_m": 0.0,
+        "longitude": 11.2752
+    },
+    {
+        "elevation_in_m": 860.0,
+        "id": "BW.RJOB",
+        "latitude": 47.737166999999999,
+        "local_depth_in_m": 0.0,
+        "longitude": 12.795714
+    }
+]

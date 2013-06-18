@@ -1,0 +1,14 @@
+heavis 2012,4,12,7,15,48,500000 45.0 12.1 13.0
+event name: 2012,4,12,7,15,48,500000
+time shift: 0.0000
+half duration: 10.0
+latitude: 45.0
+longitude: 12.1
+depth: 13.0
+Mrr: -2.11e+18
+Mtt: -4.22e+19
+Mpp: 4.43e+19
+Mrt: -9.35e+18
+Mrp: -8.38e+18
+Mtp: -6.44e+18
+
