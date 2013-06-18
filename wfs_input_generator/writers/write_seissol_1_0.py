@@ -15,7 +15,7 @@ Requires Metis to be installed (see class Gambit2Metis)
 """
 
 EARTH_RADIUS = 6371 * 1000
-deviation_from_sphere=0.0 # EARTH_RADIUS/200
+deviation_from_sphere = 0.0 # EARTH_RADIUS/200
 
 import numpy as np
 import scipy as sp
@@ -701,8 +701,6 @@ def write(config, events, stations):
         
     return output_files
     
-
-
 #Mesh partitioning
 
 class Gambit2Metis(object):
@@ -858,6 +856,7 @@ class Gambit2Metis(object):
         print '-----------------------------------------------------------------------------------'
         print '\n'
 
+#Check Stations
 
 class CheckStationsMesh(object):
     
