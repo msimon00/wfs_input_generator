@@ -15,6 +15,7 @@ import glob
 import inspect
 import numpy as np
 from obspy.core import UTCDateTime
+from obspy.core.event import readEvents
 import os
 import unittest
 
@@ -42,21 +43,23 @@ class Seissol_1_0_WriterTestCase(unittest.TestCase):
         This is a fairly comprehensive tests but should be used in comparision
         with other unit tests.
         """
-
+        
         gen = InputFileGenerator()
 
         seissol_example_path = os.path.join(self.data_dir, "seissol_example")
-        gen.add_stations([os.path.join(self.data_dir,"dataless.seed.BW_FURT"), os.path.join(self.data_dir,"dataless.seed.BW_RJOB")])
-        gen.add_events(os.path.join(self.data_dir,"event1.xml"))
-
+        gen.add_stations([os.path.join(self.data_dir, "dataless.seed.BW_FURT"),\
+			  os.path.join(self.data_dir, "dataless.seed.BW_RJOB")])
+        gen.add_events(readEvents(os.path.join(self.data_dir, "event2.xml")))
+        
         # Configure it.
-        gen.config.mesh = 'vercehpc'
+        gen.config.advection = 0
+        gen.config.mesh = 'most_simple_tet'
         gen.config.model = 'PREM'
         gen.config.working_directory = seissol_example_path
         gen.config.max_time = 1000.0
         gen.config.number_of_processors = 16
         # Write the input files to a dictionary.
-        gen.write(format='seissol_1_0', output_dir = path)
+        gen.write(format = 'seissol_1_0', output_dir = seissol_example_path)
 
         # The rest is only for asserting the produced files.
         for filename in glob.glob(os.path.join(path, "*_example")):

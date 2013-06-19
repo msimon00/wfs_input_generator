@@ -683,7 +683,7 @@ def _write_input(config, stations):
     
     return input_par
 
-def write(config, events, stations):
+def write(config, events, stations, output_directory):
     
     if len(events)>1:
         raise TypeError, 'Can only simulate one event at a time!'
