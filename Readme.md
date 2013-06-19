@@ -1,7 +1,24 @@
+## Waveform Solver Input File Generator
+
+Seismic waveform solvers are generally written in a high-performance language and
+require carefully crafted input files to work.
+These input files are very solver dependent and have their own quirks.
+This module attempts to create a generic input file generator that hides the actual
+input files' syntax and is steered with a nice Python API.
+
+It is most useful for performing simulations of real earthquakes. The module reads
+QuakeML and SEED files and derives the necessary information from them. Instead
+of reading from QuakeML and SEED files, the necessary information can also be given
+as Python dictionaries.
+
+A main focus of the development is to make it as easy as possible to add support for
+further input file formats. This is described later on in more detail.
+
 ## Installation
 
 ### Requirements:
-    * ObsPy >= 0.8
+    * ObsPy >= 0.8.3
+    * flake8 >= 2.0 (only for running the tests)
 
 ### Installation
 
@@ -36,10 +53,10 @@ Both work fine.
 >>> from wfs_input_generator import InputFileGenerator
 >>> gen = InputFileGenerator()
 
-# Add an event
+# Add an event. Only QuakeML with a given moment tensor right now.
 >>> gen.add_events("quake.xml")
 
-# Add some stations
+# Add some stations. SEED/XSEED/SAC
 >>> gen.add_stations(["station1.seed", "station2.seed"])
 
 # Add some solver specific documentation.
@@ -47,7 +64,7 @@ Both work fine.
 
 # Get a list of available output format
 >>> gen.get_available_formats()
-['ses3d_svnr276']
+['ses3d_4_0', 'ses3d_muc_svnr276']
 
 # Write the input files to a specified folder.
 >>> gen.write(format="ses3d_svnr276", output_dir="solver_input_files")

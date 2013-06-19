@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-DESCRIPTION
+An attempt to create a generic input file generator for different waveform
+solvers.
 
 :copyright:
     Lion Krischer (krischer@geophysik.uni-muenchen.de), 2013
@@ -9,11 +10,13 @@ DESCRIPTION
     GNU General Public License, Version 3
     (http://www.gnu.org/copyleft/gpl.html)
 """
+import copy
 import glob
 import inspect
 from obspy import readEvents
-from obspy.core import AttribDict
+from obspy.core import AttribDict, read
 from obspy.core.event import Event
+from obspy.sac.core import isSAC
 from obspy.xseed import Parser
 import os
 
@@ -31,6 +34,8 @@ def unique_list(items):
 
 
 class InputFileGenerator(object):
+    """
+    """
     def __init__(self):
         self.config = AttribDict()
         self._events = []
@@ -49,13 +54,16 @@ class InputFileGenerator(object):
         :param events: A list of filenames, a list of obspy.core.event.Event
             objects, or an obspy.core.event.Catalog object.
         """
-        # Thin wrapper to be able to also treat single events or filenames.
-        if isinstance(events, Event) or not hasattr(events, "__iter__"):
-            events = list(events)
+        if isinstance(events, Event) or isinstance(events, dict) or \
+                not hasattr(events, "__iter__"):
+            events = [events, ]
 
         for event in events:
             if isinstance(event, Event):
                 self._parse_event(event)
+                continue
+            elif isinstance(event, dict):
+                self._events.append(event)
                 continue
             try:
                 cat = readEvents(event)
@@ -90,15 +98,16 @@ class InputFileGenerator(object):
         :param stations: The stations for which output files should be
             generated.
         """
+        all_stations = {}
         # Thin wrapper to enable single element treatment.
         if isinstance(stations, dict) or not hasattr(stations, "__iter__"):
-            stations = list(stations)
+            stations = [stations, ]
         for station_item in stations:
             if isinstance(station_item, dict):
                 if "latitude" not in station_item or \
-                    "longitude" not in station_item or \
-                    "elevation_in_m" not in station_item or \
-                    "id" not in station_item:
+                        "longitude" not in station_item or \
+                        "elevation_in_m" not in station_item or \
+                        "id" not in station_item:
                     msg = ("Each station dictionary needs to at least have "
                         "'latitude', 'longitude', 'elevation_in_m', and 'id' "
                         "keys.")
@@ -109,53 +118,91 @@ class InputFileGenerator(object):
                     "longitude": float(station_item["longitude"]),
                     "elevation_in_m": float(station_item["elevation_in_m"]),
                     "id": str(station_item["id"])}
-                if "local_depth_in_m" in station_item:
+                try:
                     stat["local_depth_in_m"] = \
                         float(station_item["local_depth_in_m"])
-                else:
+                except:
                     stat["local_depth_in_m"] = 0.0
-                self._stations.append(stat)
+                if stat["id"] in all_stations:
+                    all_stations[stat["id"]].update(stat)
+                else:
+                    all_stations[stat["id"]] = stat
                 continue
-            # Otherwise it is assumed to be a file readable by
-            # obspy.xseed.Parser.
+            # Check if the file is a sac file.
+            if isSAC(station_item):
+                st = read(station_item)
+                for tr in st:
+                    stat = {}
+                    stat["id"] = "%s.%s" % (tr.stats.network,
+                        tr.stats.station)
+                    stat["latitude"] = float(tr.stats.sac.stla)
+                    stat["longitude"] = float(tr.stats.sac.stlo)
+                    stat["elevation_in_m"] = float(tr.stats.sac.stel)
+                    stat["local_depth_in_m"] = float(tr.stats.sac.stdp)
+                    if stat["id"] in all_stations:
+                        all_stations[stat["id"]].update(stat)
+                    else:
+                        all_stations[stat["id"]] = stat
+                    continue
+                continue
+
+            # Check if the file is readable by the parser.
             try:
-                parser = Parser(station_item)
+                Parser(station_item)
+                is_seed = True
             except:
-                msg = "Could not read %s." % station
-                raise TypeError(msg)
-            for station in parser.stations:
-                network_code = None
-                station_code = None
-                latitude = None
-                longitude = None
-                elevation = None
-                local_depth = None
-                for blockette in station:
-                    if blockette.id not in [50, 52]:
-                        continue
-                    elif blockette.id == 50:
-                        network_code = str(blockette.network_code)
-                        station_code = str(blockette.station_call_letters)
-                        continue
-                    elif blockette.id == 52:
-                        latitude = blockette.latitude
-                        longitude = blockette.longitude
-                        elevation = blockette.elevation
-                        local_depth = blockette.local_depth
-                        break
-                if None in [network_code, station_code, latitude, longitude,
-                    elevation, local_depth]:
-                    msg = "Could not parse %s" % station_item
-                    raise ValueError(msg)
-                self._stations.append({
-                    "id": "%s.%s" % (network_code, station_code),
-                    "latitude": latitude,
-                    "longitude": longitude,
-                    "elevation_in_m": elevation,
-                    "local_depth_in_m": local_depth})
+                is_seed = False
+            if is_seed is True:
+                self._parse_seed(station_item, all_stations)
+                continue
+
+            msg = "Warning: Could not read %s." % station_item
+            print msg
+
+        self._stations.extend(list(all_stations.values()))
         self._stations = unique_list(self._stations)
 
-    def write(self, format, output_dir):
+    def _parse_seed(self, station_item, all_stations):
+        """
+        Helper function to parse SEED and XSEED files.
+        """
+        parser = Parser(station_item)
+        for station in parser.stations:
+            network_code = None
+            station_code = None
+            latitude = None
+            longitude = None
+            elevation = None
+            local_depth = None
+            for blockette in station:
+                if blockette.id not in [50, 52]:
+                    continue
+                elif blockette.id == 50:
+                    network_code = str(blockette.network_code)
+                    station_code = str(blockette.station_call_letters)
+                    continue
+                elif blockette.id == 52:
+                    latitude = blockette.latitude
+                    longitude = blockette.longitude
+                    elevation = blockette.elevation
+                    local_depth = blockette.local_depth
+                    break
+            if None in [network_code, station_code, latitude, longitude,
+                    elevation, local_depth]:
+                msg = "Could not parse %s" % station_item
+                raise ValueError(msg)
+            stat = {
+                "id": "%s.%s" % (network_code, station_code),
+                "latitude": latitude,
+                "longitude": longitude,
+                "elevation_in_m": elevation,
+                "local_depth_in_m": local_depth}
+            if stat["id"] in all_stations:
+                all_stations[stat["id"]].update(stat)
+            else:
+                all_stations[stat["id"]] = stat
+
+    def write(self, format, output_dir=None):
         """
         Write an input file with the specified format.
 
@@ -174,21 +221,64 @@ class InputFileGenerator(object):
             msg = "Format %s not found. Available formats: %s." % (format,
                 list(self.__write_functions.keys()))
             raise ValueError(msg)
-        # Create the folder if it does not exist.
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
-        if not os.path.isdir(output_dir):
-            msg = "output_dir %s is not a directory" % output_dir
-            raise ValueError(msg)
-        output_dir = os.path.abspath(output_dir)
-        # Make sure only unique stations and events are passed on.
-        self._stations = unique_list(self._stations)
+        # Make sure only unique stations and events are passed on. Sort
+        # stations by id.
+        self._stations = sorted(unique_list(self._stations),
+            key=lambda x: x["id"])
         self._events = unique_list(self._events)
+
+        writer = self.__write_functions[format]
+        config = copy.deepcopy(self.config)
+
+        # Check that all required configuration values exist and convert to the
+        # correct type.
+        for config_name, value in writer["required_config"].iteritems():
+            convert_fct, _ = value
+            if config_name not in config:
+                msg = ("The input file generator for '%s' requires the "
+                    "configuration item '%s'.") % (format, config_name)
+                raise ValueError(msg)
+            try:
+                config[config_name] = convert_fct(config[config_name])
+            except:
+                msg = ("The configuration value '%s' could not be converted "
+                    "to '%s'") % (config_name, str(convert_fct))
+                raise ValueError(msg)
+
+        # Now set the optional and defaultparameters.
+        for config_name, value in writer["default_config"].iteritems():
+            default_value, convert_fct, _ = value
+            if config_name in config:
+                default_value = config[config_name]
+            try:
+                config[config_name] = convert_fct(default_value)
+            except:
+                msg = ("The configuration value '%s' could not be converted "
+                    "to '%s'") % (config_name, str(convert_fct))
+                raise ValueError(msg)
+
         # Call the write function. The write function is supposed to raise the
         # appropriate error in case anything is amiss.
-        self.__write_functions[format](config=self.config,
-            events=self._events, stations=self._stations,
-            output_directory=output_dir)
+        input_files = writer["function"](config=config,
+            events=self._events, stations=self._stations)
+
+        # If an output directory is given, it will be used.
+        if output_dir:
+            # Create the folder if it does not exist.
+            if not os.path.exists(output_dir):
+                os.makedirs(output_dir)
+            if not os.path.isdir(output_dir):
+                msg = "output_dir %s is not a directory" % output_dir
+                raise ValueError(msg)
+            output_dir = os.path.abspath(output_dir)
+
+            # Now loop over all files stored in the dictionary and write them.
+            for filename, content in input_files.iteritems():
+                with open(os.path.join(output_dir, filename), "wt") \
+                        as open_file:
+                    open_file.write(content)
+
+        return input_files
 
     def __find_write_scripts(self):
         """
@@ -207,16 +297,24 @@ class InputFileGenerator(object):
             module_name = "writers.%s" % name
             try:
                 module = __import__(module_name, globals(), locals(),
-                    ["write"], -1)
+                    ["write", "REQUIRED_CONFIGURATION",
+                    "DEFAULT_CONFIGURATION"], -1)
                 function = module.write
+                required_config = module.REQUIRED_CONFIGURATION
+                default_config = module.DEFAULT_CONFIGURATION
             except Exception as e:
                 print("Warning: Could not import %s." % (module_name))
                 print("\t%s: %s" % (e.__class__.__name__, str(e)))
+                continue
             if not hasattr(function, "__call__"):
                 msg = "Warning: write in %s is not a function." % module_name
                 print(msg)
                 continue
-            write_functions[name[6:]] = function
+            # Append the function and some more parameters.
+            write_functions[name[6:]] = {
+                "function": function,
+                "required_config": required_config,
+                "default_config": default_config}
         self.__write_functions = write_functions
 
     def get_available_formats(self):
@@ -248,7 +346,7 @@ class InputFileGenerator(object):
             event.focal_mechanisms[0]
         # Origin needs to have latitude, longitude, depth and time
         if not origin.latitude or not origin.longitude or not origin.depth \
-            or not origin.time:
+                or not origin.time:
             msg = ("Every event origin needs to have latitude, longitude, "
                 "depth and time")
             raise ValueError(msg)
@@ -259,7 +357,7 @@ class InputFileGenerator(object):
         # Also all six components need to be specified.
         mt = foc_mec.moment_tensor.tensor
         if not mt.m_rr or not mt.m_tt or not mt.m_pp or not mt.m_rt \
-            or not mt.m_rp or not mt.m_tp:
+                or not mt.m_rp or not mt.m_tp:
             msg = "Every event needs all six moment tensor components."
             raise ValueError(msg)
 
@@ -267,7 +365,7 @@ class InputFileGenerator(object):
         self._events.append({
             "latitude": origin.latitude,
             "longitude": origin.longitude,
-            "depth_in_km": origin.depth,
+            "depth_in_km": origin.depth / 1000.0,
             "origin_time": origin.time,
             "m_rr": mt.m_rr,
             "m_tt": mt.m_tt,
