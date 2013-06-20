@@ -58,7 +58,8 @@ class Seissol_1_0_WriterTestCase(unittest.TestCase):
         gen.config.max_time = 1000.0
         gen.config.number_of_processors = 16
         # Write the input files to a dictionary.
-        gen.write(format = 'seissol_1_0', output_dir = seissol_example_path)
+        
+        input_files = gen.write(format = 'seissol_1_0', output_dir = seissol_example_path)
 
         # The rest is only for asserting the produced files.
         for filename in glob.glob(os.path.join(seissol_example_path, "*_example")):

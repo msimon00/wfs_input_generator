@@ -706,7 +706,7 @@ def write(config, events, stations):
     _check_configuration(config)
     _partition_mesh(config)
 
-    output_files['input_par'] = _write_input(config, stations)
+    output_files['input.par'] = _write_input(config, stations)
     output_files['used_stations.json'] = config.used_stations
     output_files['source.dat'] = _write_source_dat(config, event)
 
