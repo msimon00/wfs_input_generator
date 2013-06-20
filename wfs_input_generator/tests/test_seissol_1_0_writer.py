@@ -52,7 +52,6 @@ class Seissol_1_0_WriterTestCase(unittest.TestCase):
         gen.add_events(readEvents(os.path.join(self.data_dir, "event2.xml")))
         
         # Configure it.
-        gen.config.advection = 0
         gen.config.mesh = 'most_simple_tet'
         gen.config.model = 'PREM'
         gen.config.working_directory = seissol_example_path
@@ -62,7 +61,7 @@ class Seissol_1_0_WriterTestCase(unittest.TestCase):
         gen.write(format = 'seissol_1_0', output_dir = seissol_example_path)
 
         # The rest is only for asserting the produced files.
-        for filename in glob.glob(os.path.join(path, "*_example")):
+        for filename in glob.glob(os.path.join(seissol_example_path, "*_example")):
             with open(filename, "rt") as open_file:
                 real_file = open_file.read()
             filename = os.path.basename(filename[:-8])
