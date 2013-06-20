@@ -191,8 +191,8 @@ DEFAULT_CONFIGURATION = {
     #<----------------------------------->
     'max_time': (2000, int, "Set maximum time in seconds that you \
     want to simulate"),
-    'max_iteration': (10000000000, int, "Set maximum number of \
-    iterations that you would want"),
+    'max_iteration': (100000000, int, "Set maximum number of \
+    iterations that you would want. Maxiumum = 9digits"),
     'max_wallclocktime': (1e20, str, "Set maximimum wallclock time"),
     # Ask what the delay means!
     'delay': (0, int, "Delay"),
@@ -576,11 +576,9 @@ def _write_input(config, stations):
                         "<-----------------------------------> \n",
                         "%-37s! problem-dependent initial values \n" % config.initial_values,
                         "%-37s! IC Parameter \n" % config.ic_parameter,
-                        "%-37s! Center of Gaussspulse (x,y,z) \n" % str(
-                            config.center_of_gaussspulse),
-                        "%-37s! Amplitudes \n" % str(config.amplitudes),
-                        "%-37s! Halfwidths (hx>0,hy>0,hz>0) \n" % str(
-                            config.halfwidths),
+                        "%-37s! Center of Gaussspulse (x,y,z) \n" % str("%1.1f  %1.1f  %1.1f" % config.center_of_gaussspulse),
+                        "%-37s! Amplitudes \n" % str("%1.1f  %1.1f  %1.1f" % config.amplitudes),
+                        "%-37s! Halfwidths (hx>0,hy>0,hz>0) \n" % str("%1.3e  %1.3e  %1.3e" % config.halfwidths),
                         " \n",
 
                         "<-----------------------------------> \n",
@@ -922,7 +920,7 @@ class CheckStationsMesh(object):
                 self.vertices, self.elements, self.boundary_elements,
                 surface_volume_thickness=0.97)
         except:
-            print 'cannot load station coordinates'
+            print 'cannot load construct surface volume'
             raise Exception('cannot construct surface volume')
 
     def __read_station_coordinates(self, station_coordinates):
@@ -1015,7 +1013,7 @@ class CheckStationsMesh(object):
                                    dtype=int).reshape(NELEM, n).transpose()
 
             # loop over element groups. irrelevant for this routine, but i\
-            # left it in in case so wants to work with it
+            # left it in in case someone wants to work with it
             for group in range(NGRPS):
                 f.readline()
                 f.readline()
@@ -1078,17 +1076,17 @@ class CheckStationsMesh(object):
 
         # select elements for boundary condition '101' = free surface
         boundary_vertices = elements[3:].transpose().take(
-            boundary_elements['101'], axis=0)
+            boundary_elements['101']-1, axis=0)
         # extract coordinates of vertices
         boundary_points_coordinates = vertices[1:].transpose().take(
-            boundary_vertices.flatten(), axis=0)
+            boundary_vertices.flatten()-1, axis=0)
+
         # create a surface volume by adding the same points, just moved
         # slightly towards the coordinate system origin
         lower_bound_boundary_points = boundary_points_coordinates *\
             (1.0 - surface_volume_thickness)
         surface_volume = np.concatenate((boundary_points_coordinates,
                                          lower_bound_boundary_points), axis=0)
-
         return surface_volume
 
     def __in_hull(self, points, hull):
@@ -1126,7 +1124,9 @@ class CheckStationsMesh(object):
         :param: 3xN-dim numpy array containing all coordinates that could
          successfully be moved into the mesh.
         """
-
+        
+      
+        
         try:
             self.hull = Delaunay(self.surface_volume)
         except:
@@ -1166,3 +1166,22 @@ class CheckStationsMesh(object):
                                                          finalstation_coordinates.flatten())) / 3, 3)
 
         return points_in_mesh
+        
+if __name__ == '__main__':
+    from wfs_input_generator import InputFileGenerator
+    from obspy.core import UTCDateTime
+    gen = InputFileGenerator()
+    seissol_example_path = '/home/msimon/git/wfs_input_generator_msimon00/wfs_input_generator/tests/data/seissol_example/'
+    data_dir = '/home/msimon/git/wfs_input_generator_msimon00/wfs_input_generator/tests/data/'
+    import glob
+    gen.add_stations(glob.glob(data_dir+'*dataless*'))
+    event = {"latitude": 48.9,"longitude": -2.3,"depth_in_km": 13.0,"origin_time":\
+    UTCDateTime(2012, 4, 12, 7, 15, 48, 500000),"m_rr": -2.11e+18,"m_tt": \
+    -4.22e+19,"m_pp": 4.43e+19,"m_rt": -9.35e+18,"m_rp": -8.38e+18,"m_tp": -6.44e+18}
+    gen.add_events(event)
+    gen.config.mesh = 'vercehpc'
+    gen.config.model = 'PREM'
+    gen.config.working_directory = seissol_example_path
+    gen.config.max_time = 1000.0
+    gen.config.number_of_processors = 16
+    gen.write(format = 'seissol_1_0', output_dir = seissol_example_path)

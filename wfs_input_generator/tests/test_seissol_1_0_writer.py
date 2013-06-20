@@ -49,7 +49,21 @@ class Seissol_1_0_WriterTestCase(unittest.TestCase):
         seissol_example_path = os.path.join(self.data_dir, "seissol_example")
         gen.add_stations([os.path.join(self.data_dir, "dataless.seed.BW_FURT"),\
 			  os.path.join(self.data_dir, "dataless.seed.BW_RJOB")])
-        gen.add_events(readEvents(os.path.join(self.data_dir, "event2.xml")))
+        
+        
+        event = {"latitude": 48.9,
+        "longitude": -2.3,
+        "depth_in_km": 13.0,
+        "origin_time": UTCDateTime(2012, 4, 12, 7, 15, 48, 500000),
+        "m_rr": -2.11e+18,
+        "m_tt": -4.22e+19,
+        "m_pp": 4.43e+19,
+        "m_rt": -9.35e+18,
+        "m_rp": -8.38e+18,
+        "m_tp": -6.44e+18}
+
+        
+        gen.add_events(event)
         
         # Configure it.
         gen.config.mesh = 'most_simple_tet'
