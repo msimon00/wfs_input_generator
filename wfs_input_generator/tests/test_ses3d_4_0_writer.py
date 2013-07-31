@@ -28,7 +28,7 @@ class SES3D_4_0_WriterTestCase(unittest.TestCase):
         self.data_dir = os.path.join(os.path.dirname(os.path.abspath(
             inspect.getfile(inspect.currentframe()))), "data")
 
-    def test_real_world_examlpe(self):
+    def test_real_world_example(self):
         """
         Test that compares the created input files to those from a real world
         example.
@@ -169,7 +169,7 @@ class SES3D_4_0_WriterTestCase(unittest.TestCase):
         # Write the input files to a dictionary.
         input_files = gen.write(format="ses3d_4_0")
         for input_file in input_files.itervalues():
-           self.assertTrue(input_file.endswith("\n\n"))
+            self.assertTrue(input_file.endswith("\n\n"))
 
 
 def suite():
